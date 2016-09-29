@@ -3,17 +3,213 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	//"github.com/jung-kurt/gofpdf"
-	//"github.com/jung-kurt/gofpdf/internal/example"
 	"io/ioutil"
 	"models/objects"
-	//"reflect"
 	"os"
 	"strings"
 )
 
-var listOfDaemon map[string]bool = map[string]bool{
-	"opticd": true,
+var ObjMap map[string]bool = map[string]bool{
+	"Acl":                               false,
+	"AclRule":                           false,
+	"AclRuleState":                      false,
+	"AclState":                          false,
+	"AlarmState":                        true,
+	"ApiInfoState":                      true,
+	"ArpEntryHwState":                   false,
+	"ArpEntryState":                     false,
+	"ArpGlobal":                         false,
+	"ArpLinuxEntryState":                false,
+	"AsicGlobalPM":                      true,
+	"AsicGlobalPMState":                 true,
+	"AsicGlobalState":                   true,
+	"BGPCounters":                       false,
+	"BGPGlobal":                         false,
+	"BGPGlobalState":                    false,
+	"BGPMessages":                       false,
+	"BGPPolicyAction":                   false,
+	"BGPPolicyActionState":              false,
+	"BGPPolicyCondition":                false,
+	"BGPPolicyConditionState":           false,
+	"BGPPolicyDefinition":               false,
+	"BGPPolicyDefinitionState":          false,
+	"BGPPolicyDefinitionStmtPrecedence": false,
+	"BGPPolicyStmt":                     false,
+	"BGPPolicyStmtState":                false,
+	"BGPQueues":                         false,
+	"BGPv4Aggregate":                    false,
+	"BGPv4Neighbor":                     false,
+	"BGPv4NeighborState":                false,
+	"BGPv4PeerGroup":                    false,
+	"BGPv4RouteState":                   false,
+	"BGPv6Aggregate":                    false,
+	"BGPv6Neighbor":                     false,
+	"BGPv6NeighborState":                false,
+	"BGPv6PeerGroup":                    false,
+	"BGPv6RouteState":                   false,
+	"BfdGlobal":                         false,
+	"BfdGlobalState":                    false,
+	"BfdSession":                        false,
+	"BfdSessionParam":                   false,
+	"BfdSessionParamState":              false,
+	"BfdSessionState":                   false,
+	"BufferGlobalStatState":             false,
+	"BufferPortStatState":               false,
+	"ComponentLogging":                  true,
+	"ConfigLogState":                    true,
+	"CoppStatState":                     false,
+	"DWDMModule":                        true,
+	"DWDMModuleClntIntf":                true,
+	"DWDMModuleClntIntfState":           true,
+	"DWDMModuleNwIntf":                  true,
+	"DWDMModuleNwIntfPMState":           true,
+	"DWDMModuleNwIntfState":             true,
+	"DWDMModulePMData":                  true,
+	"DWDMModuleState":                   true,
+	"DaemonState":                       true,
+	"DhcpGlobalConfig":                  false,
+	"DhcpIntfConfig":                    false,
+	"DhcpRelayGlobal":                   false,
+	"DhcpRelayHostDhcpState":            false,
+	"DhcpRelayIntf":                     false,
+	"DhcpRelayIntfServerState":          false,
+	"DhcpRelayIntfState":                false,
+	"DistributedRelay":                  false,
+	"DistributedRelayState":             false,
+	"EthernetPM":                        true,
+	"EthernetPMState":                   true,
+	"FMgrGlobal":                        true,
+	"Fan":                               false,
+	"FanSensor":                         true,
+	"FanSensorPMData":                   true,
+	"FanSensorPMDataState":              true,
+	"FanSensorState":                    true,
+	"FanState":                          false,
+	"FaultState":                        true,
+	"IPv4Intf":                          false,
+	"IPv4IntfState":                     false,
+	"IPv4Route":                         false,
+	"IPv4RouteHwState":                  false,
+	"IPv4RouteState":                    false,
+	"IPv6Intf":                          false,
+	"IPv6IntfState":                     false,
+	"IPv6Route":                         false,
+	"IPv6RouteHwState":                  false,
+	"IPv6RouteState":                    false,
+	"IpTableAcl":                        false,
+	"IppLinkState":                      false,
+	"IsisGlobal":                        false,
+	"IsisGlobalState":                   false,
+	"LLDPGlobal":                        false,
+	"LLDPGlobalState":                   false,
+	"LLDPIntf":                          false,
+	"LLDPIntfState":                     false,
+	"LaPortChannel":                     false,
+	"LaPortChannelIntfRefListState":     false,
+	"LaPortChannelState":                false,
+	"LacpGlobal":                        false,
+	"LacpGlobalState":                   false,
+	"Led":                               false,
+	"LedState":                          false,
+	"LinkScopeIpState":                  false,
+	"LogicalIntf":                       false,
+	"LogicalIntfState":                  false,
+	"MacTableEntryState":                true,
+	"NDPEntryState":                     false,
+	"NDPGlobal":                         false,
+	"NDPGlobalState":                    false,
+	"NDPIntfState":                      false,
+	"NdpEntryHwState":                   false,
+	"NeighborEntry":                     false,
+	"NextBestRouteInfo":                 false,
+	"NextHopInfo":                       false,
+	"NotifierEnable":                    true,
+	"OspfAreaEntry":                     false,
+	"OspfAreaEntryState":                false,
+	"OspfEventState":                    false,
+	"OspfGlobal":                        false,
+	"OspfGlobalState":                   false,
+	"OspfIPv4RouteState":                false,
+	"OspfIfEntry":                       false,
+	"OspfIfEntryState":                  false,
+	"OspfIfMetricEntry":                 false,
+	"OspfLsaKey":                        false,
+	"OspfLsdbEntryState":                false,
+	"OspfNbrEntryState":                 false,
+	"OspfNextHop":                       false,
+	"OspfVirtIfEntry":                   false,
+	"OspfVirtNbrEntryState":             false,
+	"PMData":                            true,
+	"PathInfo":                          false,
+	"PerProtocolRouteCount":             false,
+	"PlatformMgmtDeviceState":           true,
+	"PlatformState":                     false,
+	"PolicyCondition":                   false,
+	"PolicyConditionState":              false,
+	"PolicyDefinition":                  false,
+	"PolicyDefinitionState":             false,
+	"PolicyDefinitionStmtPriority":      false,
+	"PolicyPrefix":                      false,
+	"PolicyPrefixSet":                   false,
+	"PolicyPrefixSetState":              false,
+	"PolicyStmt":                        false,
+	"PolicyStmtState":                   false,
+	"Port":                              true,
+	"PortState":                         true,
+	"PowerConverterSensor":              true,
+	"PowerConverterSensorPMData":        true,
+	"PowerConverterSensorPMDataState":   true,
+	"PowerConverterSensorState":         true,
+	"Psu":                         false,
+	"PsuState":                    false,
+	"Qsfp":                        true,
+	"QsfpChannel":                 true,
+	"QsfpChannelPMData":           true,
+	"QsfpChannelPMDataState":      true,
+	"QsfpChannelState":            true,
+	"QsfpPMData":                  true,
+	"QsfpPMDataState":             true,
+	"QsfpState":                   true,
+	"RIBEventState":               false,
+	"RepoInfo":                    true,
+	"RouteDistanceState":          false,
+	"RouteInfoSummary":            false,
+	"RouteStatState":              false,
+	"RouteStatsPerInterfaceState": false,
+	"RouteStatsPerProtocolState":  false,
+	"Sfp":                          false,
+	"SfpState":                     false,
+	"SourcePolicyList":             false,
+	"StpBridgeInstance":            false,
+	"StpBridgeInstanceState":       false,
+	"StpGlobal":                    false,
+	"StpPort":                      false,
+	"StpPortState":                 false,
+	"SubIPv4Intf":                  false,
+	"SubIPv6Intf":                  false,
+	"SystemLogging":                true,
+	"SystemParam":                  true,
+	"SystemParamState":             true,
+	"SystemStatusState":            true,
+	"SystemSwVersionState":         true,
+	"TemperatureSensor":            true,
+	"TemperatureSensorPMData":      true,
+	"TemperatureSensorPMDataState": true,
+	"TemperatureSensorState":       true,
+	"ThermalState":                 false,
+	"Vlan":                         true,
+	"VlanState":                    true,
+	"VoltageSensor":                true,
+	"VoltageSensorPMData":          true,
+	"VoltageSensorPMDataState":     true,
+	"VoltageSensorState":           true,
+	"VrrpIntf":                     false,
+	"VrrpIntfState":                false,
+	"VrrpVridState":                false,
+	"VxlanInstance":                false,
+	"VxlanVtepInstance":            false,
+	"XponderGlobal":                true,
+	"XponderGlobalState":           true,
 }
 
 type ConfigObjJson struct {
@@ -23,6 +219,7 @@ type ConfigObjJson struct {
 	AutoCreate    bool     `json:"autoCreate"`
 	AutoDiscover  bool     `json:"autoDiscover"`
 	LinkedObjects []string `json:"linkedObjects"`
+	Multiplicity  string   `json:"Multiplicity"`
 }
 
 type StructDetails struct {
@@ -32,54 +229,24 @@ type StructDetails struct {
 	IsKey        bool
 	IsDefaultSet bool
 	Default      string
+	Selection    []string
+	AutoDiscover bool
+	AutoCreate   bool
 }
 
 type DaemonDetail map[string][]StructDetails
 
 var ModelObj map[string]DaemonDetail
 
-/*
-func Example(pdf *gofpdf.Fpdf) {
-	for daemonName, modelObjEnt := range ModelObj {
-		for structName, structDetails := range modelObjEnt {
-			pdf.SetFont("Arial", "B", 10)
-			//pdf.Cell(20, 10, daemonName)
-			//pdf.Ln(-1)
-			pdf.Cell(20, 10, structName)
-			pdf.SetFont("Arial", "", 8)
-			for _, structDetail := range structDetails {
-				fmt.Println("DaemonName:", daemonName, "StructName:", structName, "FieldName:", structDetail.FieldName, "DataType:", structDetail.Type)
-				//fmt.Println(structDetail.FieldName)
-				str := structDetail.FieldName + "( " + structDetail.Type + " )"
-				pdf.Ln(-1)
-				pdf.SetFont("Arial", "B", 8)
-				pdf.Cell(20, 10, str)
-				pdf.Ln(-1)
-				//pdf.Cell(20, 10, structDetail.Type)
-				//pdf.Cell(20, 10, steructDetail.Tag)
-				pdf.SetFont("Arial", "", 8)
-				pdf.MultiCell(0, 3, structDetail.Tag, "", "", false)
-				//pdf.CellFormat(40, 6, structDetail.FieldName, "1", 0, "", false, 0, "")
-				//pdf.CellFormat(60, 6, structDetail.Type, "1", 0, "", false, 0, "")
-				//pdf.CellFormat(20, 6, structDetail.Type, "1", 0, "", false, 0, "")
-			}
-
-			pdf.Ln(-1)
-			pdf.Ln(-1)
-		}
-	}
-	//example.Summary(err, fileStr)
-	// Output:
-	// Successfully generated pdf/basic.pdf
-}
-*/
-
 type ParameterDetails struct {
-	Type         string `json:"type"`
-	IsKey        bool   `json:"isKey"`
-	Description  string `json:"description"`
-	Default      string `json:"default"`
-	IsDefaultSet bool   `json:"isDefaultSet"`
+	Type         string   `json:"type"`
+	IsKey        bool     `json:"isKey"`
+	Description  string   `json:"description"`
+	Default      string   `json:"default"`
+	IsDefaultSet bool     `json:"isDefaultSet"`
+	Selection    []string `json:"selections"`
+	AutoDiscover bool     `json:"autoDiscover"`
+	AutoCreate   bool     `json:"autoCreate"`
 }
 
 /*
@@ -115,7 +282,7 @@ func generateParameterDetailList(structName string, owner string) {
 	var paramDetailMap map[string]ParameterDetails
 	paramDetailMap = make(map[string]ParameterDetails)
 	fileName := "../../../reltools/codegentools/._genInfo/" + structName + "Members.json"
-	fmt.Println("FileName: ", fileName)
+	//fmt.Println("FileName: ", fileName)
 	bytes, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		fmt.Println("Error in reading Object Configuration File", fileName)
@@ -137,6 +304,12 @@ func generateParameterDetailList(structName string, owner string) {
 			IsKey:        val.IsKey,
 			IsDefaultSet: val.IsDefaultSet,
 			Default:      val.Default,
+			AutoDiscover: val.AutoDiscover,
+			AutoCreate:   val.AutoCreate,
+		}
+		if val.Selection != nil {
+			structDetail.Selection = append(structDetail.Selection, val.Selection...)
+			fmt.Println(structDetail.Selection)
 		}
 		structDetails = append(structDetails, structDetail)
 	}
@@ -144,69 +317,87 @@ func generateParameterDetailList(structName string, owner string) {
 	ModelObj[owner] = ModelObjEnt
 }
 
-func main() {
-	var objMap map[string]ConfigObjJson
+func generateReqdObjMap(reqdObjMap *map[string]bool) {
+	for key, val := range ObjMap {
+		if val {
+			(*reqdObjMap)[key] = true
+		}
+	}
 
-	objMap = make(map[string]ConfigObjJson)
-	ModelObj = make(map[string]DaemonDetail)
-	for key, val := range listOfDaemon {
+}
+
+func generateListOfDaemon(listOfDaemon, reqdObjMap *map[string]bool, objMap *map[string]ConfigObjJson) {
+	for key, val := range *objMap {
+		if (*reqdObjMap)[key] {
+			(*listOfDaemon)[val.Owner] = true
+		}
+	}
+}
+
+func allocateModelObj(ModelObj *map[string]DaemonDetail, listOfDaemon *map[string]bool) {
+	for key, val := range *listOfDaemon {
 		if val == true {
-			ModelObjEnt, _ := ModelObj[key]
+			ModelObjEnt, _ := (*ModelObj)[key]
 			ModelObjEnt = make(map[string][]StructDetails)
-			ModelObj[key] = ModelObjEnt
+			(*ModelObj)[key] = ModelObjEnt
 		}
 	}
-	objConfigFile := "genObjectConfig.json"
 
-	bytes, err := ioutil.ReadFile(objConfigFile)
-	if err != nil {
-		fmt.Println("Error in reading Object Configuration File", objConfigFile)
-		return
-	}
-	err = json.Unmarshal(bytes, &objMap)
-	if err != nil {
-		fmt.Println("Error Unmarshalling Object Configuration file", objConfigFile)
-		return
-	}
+}
 
-	for key, val := range objMap {
-		_, exist := listOfDaemon[val.Owner]
-		if !exist {
-			continue
+func generateModelObjectRstFile(listOfDaemon *map[string]bool) {
+	f, err := os.Create("modelObjects.rst")
+	check(err)
+	f.WriteString("FlexSwitch Model Objects\n")
+	f.WriteString("============================================\n\n\n")
+	f.WriteString(".. toctree::\n")
+	f.WriteString("   :maxdepth: 1\n\n")
+	for _, modelObjEnt := range ModelObj {
+		for structName, _ := range modelObjEnt {
+			rstFile := structName + "Objects.rst"
+			f.WriteString("   " + structName + "  <" + rstFile + ">\n")
 		}
-
-		_, exist = objects.GenConfigObjectMap[strings.ToLower(key)]
-		if !exist {
-			fmt.Println("Error finding given Object in GenConfigObjectMap")
-			continue
-		}
-		generateParameterDetailList(key, val.Owner)
 	}
+	f.Sync()
+	f.Close()
+}
 
-	for daemonName, modelObjEnt := range ModelObj {
-		f, err := os.Create(daemonName + "Objects.rst")
-		check(err)
-		f.WriteString(strings.ToUpper(daemonName) + " Structure\n")
-		f.WriteString("============================================\n\n")
-		f.WriteString("Objects\n")
-		f.WriteString("---------------------------------------------------------\n\n")
+func constructRstFile() {
+	for _, modelObjEnt := range ModelObj {
+		//fmt.Println("Daemon:", daemonName, "modelObjEnt:", modelObjEnt)
 		for structName, structDetails := range modelObjEnt {
+			f, err := os.Create(structName + "Objects.rst")
+			check(err)
+			f.WriteString(structName + " Model Objects\n")
+			f.WriteString("============================================\n\n")
 			if strings.Contains(structName, "State") {
-				str := strings.Trim(structName, "State")
+				str := strings.TrimSuffix(structName, "State")
 				f.WriteString("*state/" + str + "*\n")
 			} else {
 				f.WriteString("*config/" + structName + "*\n")
 			}
-			f.WriteString("\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\n\n")
+			//f.WriteString("\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\n\n")
+			f.WriteString("------------------------------------\n\n")
 			for _, structDetail := range structDetails {
 				if structDetail.IsKey {
 					f.WriteString("- **" + structDetail.FieldName + "**\n")
 					f.WriteString("\t- **Data Type**: " + structDetail.Type + "\n")
 					f.WriteString("\t- **Description**: " + structDetail.Description + ".\n")
-					f.WriteString("\t- This parameter is the key element.\n")
 					if structDetail.IsDefaultSet {
 						f.WriteString("\t- **Default**: " + structDetail.Default + "\n")
 					}
+					if structDetail.Selection != nil {
+						f.WriteString("\t- **Possible Values**: ")
+						for idx, val := range structDetail.Selection {
+							f.WriteString(val)
+							if idx != len(structDetail.Selection)-1 {
+								f.WriteString(", ")
+							} else {
+								f.WriteString("\n")
+							}
+						}
+					}
+					f.WriteString("\t- This parameter is key element.\n")
 				}
 			}
 			for _, structDetail := range structDetails {
@@ -219,11 +410,78 @@ func main() {
 					}
 				}
 			}
+
 			f.WriteString("\n\n")
+			f.WriteString("**REST API Supported:**\n")
+			if strings.Contains(structName, "State") {
+				str := strings.TrimSuffix(structName, "State")
+				f.WriteString("\t- GET\n")
+				f.WriteString("\t\t curl -X GET -H 'Content-Type: application/json' --header 'Accept: application/json' -d '{<Model Object as json-Data>}' http://<device-management-IP>:8080/public/v1/state/" + str + "\n")
+			} else {
+				f.WriteString("\t- GET\n")
+				f.WriteString("\t\t curl -X GET -H 'Content-Type: application/json' --header 'Accept: application/json' -d '{<Model Object as json-Data>}' http://<device-management-IP>:8080/public/v1/config/" + structName + "\n")
+				if !structDetails[0].AutoCreate && !structDetails[0].AutoDiscover {
+					f.WriteString("\t- POST\n")
+					f.WriteString("\t\t curl -X POST -H 'Content-Type: application/json' --header 'Accept: application/json' -d '{<Model Object as json-Data>}' http://<device-management-IP>:8080/public/v1/config/" + structName + "\n")
+					f.WriteString("\t- DELETE\n")
+					f.WriteString("\t\t curl -X DELETE -i -H 'Accept:application/json' -d '{<Model Object as json data>}' http://device-management-IP:8080/public/v1//config/" + structName + "\n")
+				}
+				f.WriteString("\t- PATCH\n")
+				f.WriteString("\t\t curl -X PATCH -H 'Content-Type: application/json' -d '{<Model Object as json data>}'  http://<device-management-IP:8080/public/v1/config/" + structName + "\n")
+			}
+			f.WriteString("\n\n")
+			f.Sync()
+			f.Close()
 		}
-		f.Sync()
-		f.Close()
 	}
+}
+
+func main() {
+	var objMap map[string]ConfigObjJson
+
+	objMap = make(map[string]ConfigObjJson)
+	objConfigFile := "../models/objects/genObjectConfig.json"
+
+	bytes, err := ioutil.ReadFile(objConfigFile)
+	if err != nil {
+		fmt.Println("Error in reading Object Configuration File", objConfigFile)
+		return
+	}
+
+	err = json.Unmarshal(bytes, &objMap)
+	if err != nil {
+		fmt.Println("Error Unmarshalling Object Configuration file", objConfigFile)
+		return
+	}
+
+	reqdObjMap := make(map[string]bool)
+	generateReqdObjMap(&reqdObjMap)
+
+	//fmt.Println(reqdObjMap)
+	listOfDaemon := make(map[string]bool)
+	generateListOfDaemon(&listOfDaemon, &reqdObjMap, &objMap)
+
+	ModelObj = make(map[string]DaemonDetail)
+	allocateModelObj(&ModelObj, &listOfDaemon)
+
+	for key, val := range objMap {
+		//fmt.Println(key)
+		_, exist := reqdObjMap[key]
+		if !exist {
+			continue
+		}
+
+		_, exist = objects.GenConfigObjectMap[strings.ToLower(key)]
+		if !exist {
+			fmt.Println("Error finding given Object in GenConfigObjectMap")
+			continue
+		}
+		generateParameterDetailList(key, val.Owner)
+	}
+
+	generateModelObjectRstFile(&listOfDaemon)
+	constructRstFile()
+
 }
 
 func check(e error) {

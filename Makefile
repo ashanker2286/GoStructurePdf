@@ -7,4 +7,4 @@ exe: $(SRCS)
 	go build $(SRCS)
 
 clean:
-	$(RM) genGoStructPdf
+	$(RM) genGoStructPdf *.rst
