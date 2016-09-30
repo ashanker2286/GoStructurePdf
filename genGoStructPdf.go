@@ -219,7 +219,7 @@ type ConfigObjJson struct {
 	AutoCreate    bool     `json:"autoCreate"`
 	AutoDiscover  bool     `json:"autoDiscover"`
 	LinkedObjects []string `json:"linkedObjects"`
-	Multiplicity  string   `json:"Multiplicity"`
+	Multiplicity  string   `json:"multiplicity"`
 }
 
 type StructDetails struct {
@@ -232,6 +232,7 @@ type StructDetails struct {
 	Selection    []string
 	AutoDiscover bool
 	AutoCreate   bool
+	Multiplicity bool
 }
 
 type DaemonDetail map[string][]StructDetails
@@ -278,7 +279,7 @@ func reflectThis(intf interface{}, owner string, structName string) {
 }
 */
 
-func generateParameterDetailList(structName string, owner string) {
+func generateParameterDetailList(structName string, owner string, Multiplicity string) {
 	var paramDetailMap map[string]ParameterDetails
 	paramDetailMap = make(map[string]ParameterDetails)
 	fileName := "../../../reltools/codegentools/._genInfo/" + structName + "Members.json"
@@ -309,7 +310,10 @@ func generateParameterDetailList(structName string, owner string) {
 		}
 		if val.Selection != nil {
 			structDetail.Selection = append(structDetail.Selection, val.Selection...)
-			fmt.Println(structDetail.Selection)
+			//fmt.Println(structDetail.Selection)
+		}
+		if strings.ContainsAny(Multiplicity, "*") {
+			structDetail.Multiplicity = true
 		}
 		structDetails = append(structDetails, structDetail)
 	}
@@ -363,6 +367,8 @@ func generateModelObjectRstFile(listOfDaemon *map[string]bool) {
 }
 
 func constructRstFile() {
+	autoCreateFlag := false
+	autoDiscoverFlag := false
 	for _, modelObjEnt := range ModelObj {
 		//fmt.Println("Daemon:", daemonName, "modelObjEnt:", modelObjEnt)
 		for structName, structDetails := range modelObjEnt {
@@ -378,6 +384,12 @@ func constructRstFile() {
 			}
 			//f.WriteString("\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\n\n")
 			f.WriteString("------------------------------------\n\n")
+			if structDetails[0].Multiplicity {
+				f.WriteString("- Multiple of these objects can exist in a system.\n")
+			} else {
+				f.WriteString("- Only one of these object can exist in a system.\n")
+			}
+
 			for _, structDetail := range structDetails {
 				if structDetail.IsKey {
 					f.WriteString("- **" + structDetail.FieldName + "**\n")
@@ -398,6 +410,12 @@ func constructRstFile() {
 						}
 					}
 					f.WriteString("\t- This parameter is key element.\n")
+					if autoDiscoverFlag == false && structDetail.AutoDiscover {
+						autoDiscoverFlag = true
+					}
+					if autoCreateFlag == false && structDetail.AutoCreate {
+						autoCreateFlag = true
+					}
 				}
 			}
 			for _, structDetail := range structDetails {
@@ -412,22 +430,37 @@ func constructRstFile() {
 			}
 
 			f.WriteString("\n\n")
-			f.WriteString("**REST API Supported:**\n")
+			f.WriteString("**Flexswitch API Supported:**\n")
 			if strings.Contains(structName, "State") {
 				str := strings.TrimSuffix(structName, "State")
-				f.WriteString("\t- GET\n")
-				f.WriteString("\t\t curl -X GET -H 'Content-Type: application/json' --header 'Accept: application/json' -d '{<Model Object as json-Data>}' http://<device-management-IP>:8080/public/v1/state/" + str + "\n")
-			} else {
-				f.WriteString("\t- GET\n")
-				f.WriteString("\t\t curl -X GET -H 'Content-Type: application/json' --header 'Accept: application/json' -d '{<Model Object as json-Data>}' http://<device-management-IP>:8080/public/v1/config/" + structName + "\n")
-				if !structDetails[0].AutoCreate && !structDetails[0].AutoDiscover {
-					f.WriteString("\t- POST\n")
-					f.WriteString("\t\t curl -X POST -H 'Content-Type: application/json' --header 'Accept: application/json' -d '{<Model Object as json-Data>}' http://<device-management-IP>:8080/public/v1/config/" + structName + "\n")
-					f.WriteString("\t- DELETE\n")
-					f.WriteString("\t\t curl -X DELETE -i -H 'Accept:application/json' -d '{<Model Object as json data>}' http://device-management-IP:8080/public/v1//config/" + structName + "\n")
+				f.WriteString("\t- GET By Key\n")
+				f.WriteString("\t\t curl -X GET -H 'Content-Type: application/json' --header 'Accept: application/json' -d '{<Model Object as json-Data>}' http://device-management-IP:8080/public/v1/state/" + str + "\n")
+				if structDetails[0].Multiplicity {
+					f.WriteString("\t- GET ALL\n")
+					f.WriteString("\t\t curl -X GET http://device-management-IP:8080/public/v1/state/" + str + "?CurrentMarker=<x>&Count=<y>\n")
 				}
-				f.WriteString("\t- PATCH\n")
-				f.WriteString("\t\t curl -X PATCH -H 'Content-Type: application/json' -d '{<Model Object as json data>}'  http://<device-management-IP:8080/public/v1/config/" + structName + "\n")
+			} else {
+				f.WriteString("\t- GET By Key\n")
+				f.WriteString("\t\t curl -X GET -H 'Content-Type: application/json' --header 'Accept: application/json' -d '{<Model Object as json-Data>}' http://device-management-IP:8080/public/v1/config/" + structName + "\n")
+				f.WriteString("\t- GET By ID\n")
+				f.WriteString("\t\t curl -X GET http://device-management-IP:8080/public/v1/config/" + structName + "/<uuid>\n")
+				if structDetails[0].Multiplicity {
+					f.WriteString("\t- GET ALL\n")
+					f.WriteString("\t\t curl -X GET http://device-management-IP:8080/public/v1/config/" + structName + "?CurrentMarker=<x>&Count=<y>\n")
+				}
+				fmt.Println("StructName:", structName, "AutoCreate:", structDetails[0].AutoCreate, "AutoDiscover:", structDetails[0].AutoDiscover)
+				if !autoCreateFlag && autoDiscoverFlag {
+					f.WriteString("\t- CREATE(POST)\n")
+					f.WriteString("\t\t curl -X POST -H 'Content-Type: application/json' --header 'Accept: application/json' -d '{<Model Object as json-Data>}' http://device-management-IP:8080/public/v1/config/" + structName + "\n")
+					f.WriteString("\t- DELETE By Key\n")
+					f.WriteString("\t\t curl -X DELETE -i -H 'Accept:application/json' -d '{<Model Object as json data>}' http://device-management-IP:8080/public/v1/config/" + structName + "\n")
+					f.WriteString("\t- DELETE By ID\n")
+					f.WriteString("\t\t curl -X DELETE http://device-management-IP:8080/public/v1/config/" + structName + "<uuid>\n")
+				}
+				f.WriteString("\t- UPDATE(PATCH) By Key\n")
+				f.WriteString("\t\t curl -X PATCH -H 'Content-Type: application/json' -d '{<Model Object as json data>}'  http://device-management-IP:8080/public/v1/config/" + structName + "\n")
+				f.WriteString("\t- UPDATE(PATCH) By ID\n")
+				f.WriteString("\t\t curl -X PATCH -H 'Content-Type: application/json' -d '{<Model Object as json data>}'  http://device-management-IP:8080/public/v1/config/" + structName + "<uuid>\n")
 			}
 			f.WriteString("\n\n")
 			f.Sync()
@@ -476,7 +509,7 @@ func main() {
 			fmt.Println("Error finding given Object in GenConfigObjectMap")
 			continue
 		}
-		generateParameterDetailList(key, val.Owner)
+		generateParameterDetailList(key, val.Owner, val.Multiplicity)
 	}
 
 	generateModelObjectRstFile(&listOfDaemon)
