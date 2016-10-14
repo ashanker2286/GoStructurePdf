@@ -283,7 +283,6 @@ func generateParameterDetailList(structName string, owner string, Multiplicity s
 	var paramDetailMap map[string]ParameterDetails
 	paramDetailMap = make(map[string]ParameterDetails)
 	fileName := "../../../reltools/codegentools/._genInfo/" + structName + "Members.json"
-	//fmt.Println("FileName: ", fileName)
 	bytes, err := ioutil.ReadFile(fileName)
 	if err != nil {
 		fmt.Println("Error in reading Object Configuration File", fileName)
@@ -310,7 +309,6 @@ func generateParameterDetailList(structName string, owner string, Multiplicity s
 		}
 		if val.Selection != nil {
 			structDetail.Selection = append(structDetail.Selection, val.Selection...)
-			//fmt.Println(structDetail.Selection)
 		}
 		if strings.ContainsAny(Multiplicity, "*") {
 			structDetail.Multiplicity = true
@@ -370,7 +368,6 @@ func constructRstFile() {
 	autoCreateFlag := false
 	autoDiscoverFlag := false
 	for _, modelObjEnt := range ModelObj {
-		//fmt.Println("Daemon:", daemonName, "modelObjEnt:", modelObjEnt)
 		for structName, structDetails := range modelObjEnt {
 			f, err := os.Create(structName + "Objects.rst")
 			check(err)
@@ -382,7 +379,6 @@ func constructRstFile() {
 			} else {
 				f.WriteString("*config/" + structName + "*\n")
 			}
-			//f.WriteString("\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\n\n")
 			f.WriteString("------------------------------------\n\n")
 			if structDetails[0].Multiplicity {
 				f.WriteString("- Multiple of these objects can exist in a system.\n")
@@ -490,7 +486,6 @@ func main() {
 	reqdObjMap := make(map[string]bool)
 	generateReqdObjMap(&reqdObjMap)
 
-	//fmt.Println(reqdObjMap)
 	listOfDaemon := make(map[string]bool)
 	generateListOfDaemon(&listOfDaemon, &reqdObjMap, &objMap)
 
@@ -498,7 +493,6 @@ func main() {
 	allocateModelObj(&ModelObj, &listOfDaemon)
 
 	for key, val := range objMap {
-		//fmt.Println(key)
 		_, exist := reqdObjMap[key]
 		if !exist {
 			continue
