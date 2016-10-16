@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/olekukonko/tablewriter"
 	"io/ioutil"
 	"models/objects"
 	"os"
@@ -381,31 +382,87 @@ func constructRstFile() {
 			}
 			f.WriteString("------------------------------------\n\n")
 			if structDetails[0].Multiplicity {
-				f.WriteString("- Multiple of these objects can exist in a system.\n")
+				f.WriteString("- Multiple objects of this type can exist in a system.\n")
 			} else {
-				f.WriteString("- Only one of these object can exist in a system.\n")
+				f.WriteString("- Only one object of this type can exist in a system.\n")
 			}
 
-			for _, structDetail := range structDetails {
-				if structDetail.IsKey {
-					f.WriteString("- **" + structDetail.FieldName + "**\n")
-					f.WriteString("\t- **Data Type**: " + structDetail.Type + "\n")
-					f.WriteString("\t- **Description**: " + structDetail.Description + ".\n")
-					if structDetail.IsDefaultSet {
-						f.WriteString("\t- **Default**: " + structDetail.Default + "\n")
-					}
-					if structDetail.Selection != nil {
-						f.WriteString("\t- **Possible Values**: ")
-						for idx, val := range structDetail.Selection {
-							f.WriteString(val)
-							if idx != len(structDetail.Selection)-1 {
-								f.WriteString(", ")
-							} else {
-								f.WriteString("\n")
+			/*
+				for _, structDetail := range structDetails {
+					if structDetail.IsKey {
+						f.WriteString("- **" + structDetail.FieldName + "**\n")
+						f.WriteString("\t- **Data Type**: " + structDetail.Type + "\n")
+						f.WriteString("\t- **Description**: " + structDetail.Description + ".\n")
+						if structDetail.IsDefaultSet {
+							f.WriteString("\t- **Default**: " + structDetail.Default + "\n")
+						}
+						if structDetail.Selection != nil {
+							f.WriteString("\t- **Possible Values**: ")
+							for idx, val := range structDetail.Selection {
+								f.WriteString(val)
+								if idx != len(structDetail.Selection)-1 {
+									f.WriteString(", ")
+								} else {
+									f.WriteString("\n")
+								}
 							}
 						}
+						f.WriteString("\t- This parameter is key element.\n")
+						if autoDiscoverFlag == false && structDetail.AutoDiscover {
+							autoDiscoverFlag = true
+						}
+						if autoCreateFlag == false && structDetail.AutoCreate {
+							autoCreateFlag = true
+						}
 					}
-					f.WriteString("\t- This parameter is key element.\n")
+				}
+				for _, structDetail := range structDetails {
+					if !structDetail.IsKey {
+						f.WriteString("- **" + structDetail.FieldName + "**\n")
+						f.WriteString("\t- **Data Type**: " + structDetail.Type + "\n")
+						f.WriteString("\t- **Description**: " + structDetail.Description + ".\n")
+						if structDetail.IsDefaultSet {
+							f.WriteString("\t- **Default**: " + structDetail.Default + "\n")
+						}
+					}
+				}
+			*/
+			f.WriteString("\n")
+
+			table := tablewriter.NewWriter(f)
+			table.SetAutoFormatHeaders(true)
+			table.SetHeader([]string{"**Parameter Name**", "**Data Type**", "**Description**", "**Default**", "**Valid Values**"})
+			table.SetRowLine(true)
+			table.SetRowSeparator("-")
+			table.SetHeaderLine(true)
+			table.SetColWidth(30)
+			data := [][]string{}
+			for _, structDetail := range structDetails {
+				val := []string{}
+				if structDetail.IsKey {
+					str := structDetail.FieldName
+					str += " **[KEY]**"
+					val = append(val, str)
+					val = append(val, structDetail.Type)
+					val = append(val, structDetail.Description)
+					if structDetail.IsDefaultSet {
+						val = append(val, structDetail.Default)
+					} else {
+						val = append(val, "N/A")
+					}
+					if structDetail.Selection != nil {
+						var str string
+						for idx := 0; idx < len(structDetail.Selection); idx++ {
+							str = str + structDetail.Selection[idx]
+							if idx != len(structDetail.Selection)-1 {
+								str += ", "
+							}
+						}
+						val = append(val, str)
+					} else {
+						val = append(val, "N/A")
+					}
+					data = append(data, val)
 					if autoDiscoverFlag == false && structDetail.AutoDiscover {
 						autoDiscoverFlag = true
 					}
@@ -415,15 +472,36 @@ func constructRstFile() {
 				}
 			}
 			for _, structDetail := range structDetails {
+				val := []string{}
 				if !structDetail.IsKey {
-					f.WriteString("- **" + structDetail.FieldName + "**\n")
-					f.WriteString("\t- **Data Type**: " + structDetail.Type + "\n")
-					f.WriteString("\t- **Description**: " + structDetail.Description + ".\n")
+					val = append(val, structDetail.FieldName)
+					val = append(val, structDetail.Type)
+					val = append(val, structDetail.Description)
 					if structDetail.IsDefaultSet {
-						f.WriteString("\t- **Default**: " + structDetail.Default + "\n")
+						val = append(val, structDetail.Default)
+					} else {
+						val = append(val, "N/A")
 					}
+					if structDetail.Selection != nil {
+						var str string
+						for idx := 0; idx < len(structDetail.Selection); idx++ {
+							str = str + structDetail.Selection[idx]
+							if idx != len(structDetail.Selection)-1 {
+								str += ", "
+							}
+						}
+						val = append(val, str)
+					} else {
+						val = append(val, "N/A")
+					}
+					data = append(data, val)
 				}
 			}
+
+			for _, v := range data {
+				table.Append(v)
+			}
+			table.Render()
 
 			f.WriteString("\n\n")
 			f.WriteString("**Flexswitch API Supported:**\n")
