@@ -10,6 +10,25 @@ import (
 	"strings"
 )
 
+var codeHeader string = `
+::
+
+	import sys
+	import os
+	from flexswitchV2 import FlexSwitch
+
+	if __name__ == '__main__':
+		switchIP := "192.168.56.101"
+		swtch = FlexSwitch (switchIP, 8080)  # Instantiate object to talk to flexSwitch
+`
+
+var codeTail string = `
+		if error != None: #Error not being None implies there is some problem
+			print error
+		else :
+			print 'Success'
+`
+
 var ObjMap map[string]bool = map[string]bool{
 	"Acl":                               false,
 	"AclRule":                           false,
@@ -101,10 +120,10 @@ var ObjMap map[string]bool = map[string]bool{
 	"IppLinkState":                      false,
 	"IsisGlobal":                        false,
 	"IsisGlobalState":                   false,
-	"LLDPGlobal":                        false,
-	"LLDPGlobalState":                   false,
-	"LLDPIntf":                          false,
-	"LLDPIntfState":                     false,
+	"LLDPGlobal":                        true,
+	"LLDPGlobalState":                   true,
+	"LLDPIntf":                          true,
+	"LLDPIntfState":                     true,
 	"LaPortChannel":                     false,
 	"LaPortChannelIntfRefListState":     false,
 	"LaPortChannelState":                false,
@@ -251,35 +270,6 @@ type ParameterDetails struct {
 	AutoCreate   bool     `json:"autoCreate"`
 }
 
-/*
-func reflectThis(intf interface{}, owner string, structName string) {
-	//fmt.Println("Struct Name:", structName)
-	val := reflect.TypeOf(intf).Elem()
-	numOfField := val.NumField()
-	//fmt.Println("Val: ", val)
-	//fmt.Println("NumField: ", numOfField)
-	//fmt.Println("Intf: ", intf)
-
-	ModelObjEnt, _ := ModelObj[owner]
-	structDetails, _ := ModelObjEnt[structName]
-	for i := 1; i < numOfField; i++ {
-		field := val.Field(i)
-		fieldName := field.Name
-		tag := field.Tag
-		Type := field.Type
-		//fmt.Println("Field Name:", fieldName, "Tag:", tag, "Type:", Type)
-		structDetail := StructDetails{
-			FieldName: fieldName,
-			Tag:       string(tag),
-			Type:      Type.String(),
-		}
-		structDetails = append(structDetails, structDetail)
-	}
-	ModelObjEnt[structName] = structDetails
-	ModelObj[owner] = ModelObjEnt
-}
-*/
-
 func generateParameterDetailList(structName string, owner string, Multiplicity string) {
 	var paramDetailMap map[string]ParameterDetails
 	paramDetailMap = make(map[string]ParameterDetails)
@@ -352,7 +342,7 @@ func generateModelObjectRstFile(listOfDaemon *map[string]bool) {
 	f, err := os.Create("modelObjects.rst")
 	check(err)
 	f.WriteString("FlexSwitch Model Objects\n")
-	f.WriteString("============================================\n\n\n")
+	f.WriteString("================================================================\n\n\n")
 	f.WriteString(".. toctree::\n")
 	f.WriteString("   :maxdepth: 1\n\n")
 	for _, modelObjEnt := range ModelObj {
@@ -365,15 +355,271 @@ func generateModelObjectRstFile(listOfDaemon *map[string]bool) {
 	f.Close()
 }
 
-func constructRstFile() {
+func createParameterDescTable(structName string, structDetails []StructDetails, f *os.File) (bool, bool) {
 	autoCreateFlag := false
 	autoDiscoverFlag := false
+	table := tablewriter.NewWriter(f)
+	table.SetAutoFormatHeaders(true)
+	table.SetHeader([]string{"**Parameter Name**", "**Data Type**", "**Description**", "**Default**", "**Valid Values**"})
+	table.SetRowLine(true)
+	table.SetRowSeparator("-")
+	table.SetHeaderLine(true)
+	table.SetColWidth(30)
+	data := [][]string{}
+	for _, structDetail := range structDetails {
+		val := []string{}
+		if structDetail.IsKey {
+			str := structDetail.FieldName
+			str += " **[KEY]**"
+			val = append(val, str)
+			val = append(val, structDetail.Type)
+			val = append(val, structDetail.Description)
+			if structDetail.IsDefaultSet {
+				val = append(val, structDetail.Default)
+			} else {
+				val = append(val, "N/A")
+			}
+			if structDetail.Selection != nil {
+				var str string
+				for idx := 0; idx < len(structDetail.Selection); idx++ {
+					str = str + structDetail.Selection[idx]
+					if idx != len(structDetail.Selection)-1 {
+						str += ", "
+					}
+				}
+				val = append(val, str)
+			} else {
+				val = append(val, "N/A")
+			}
+			data = append(data, val)
+			if autoDiscoverFlag == false && structDetail.AutoDiscover {
+				autoDiscoverFlag = true
+			}
+			if autoCreateFlag == false && structDetail.AutoCreate {
+				autoCreateFlag = true
+			}
+		}
+	}
+	for _, structDetail := range structDetails {
+		val := []string{}
+		if !structDetail.IsKey {
+			val = append(val, structDetail.FieldName)
+			val = append(val, structDetail.Type)
+			val = append(val, structDetail.Description)
+			if structDetail.IsDefaultSet {
+				val = append(val, structDetail.Default)
+			} else {
+				val = append(val, "N/A")
+			}
+			if structDetail.Selection != nil {
+				var str string
+				for idx := 0; idx < len(structDetail.Selection); idx++ {
+					str = str + structDetail.Selection[idx]
+					if idx != len(structDetail.Selection)-1 {
+						str += ", "
+					}
+				}
+				val = append(val, str)
+			} else {
+				val = append(val, "N/A")
+			}
+			data = append(data, val)
+		}
+	}
+
+	for _, v := range data {
+		table.Append(v)
+	}
+	table.Render()
+	return autoDiscoverFlag, autoCreateFlag
+}
+
+func WriteCurlCommands(structName string, structDetails []StructDetails, f *os.File, autoDiscoverFlag bool, autoCreateFlag bool) {
+	if strings.Contains(structName, "State") {
+		str := strings.TrimSuffix(structName, "State")
+		f.WriteString("\t- GET By Key\n")
+		f.WriteString("\t\t curl -X GET -H 'Content-Type: application/json' --header 'Accept: application/json' -d '{<Model Object as json-Data>}' http://device-management-IP:8080/public/v1/state/" + str + "\n")
+		if structDetails[0].Multiplicity {
+			f.WriteString("\t- GET ALL\n")
+			f.WriteString("\t\t curl -X GET http://device-management-IP:8080/public/v1/state/" + str + "?CurrentMarker=<x>&Count=<y>\n")
+		}
+	} else {
+		f.WriteString("\t- GET By Key\n")
+		f.WriteString("\t\t curl -X GET -H 'Content-Type: application/json' --header 'Accept: application/json' -d '{<Model Object as json-Data>}' http://device-management-IP:8080/public/v1/config/" + structName + "\n")
+		f.WriteString("\t- GET By ID\n")
+		f.WriteString("\t\t curl -X GET http://device-management-IP:8080/public/v1/config/" + structName + "/<uuid>\n")
+		if structDetails[0].Multiplicity {
+			f.WriteString("\t- GET ALL\n")
+			f.WriteString("\t\t curl -X GET http://device-management-IP:8080/public/v1/config/" + structName + "?CurrentMarker=<x>&Count=<y>\n")
+		}
+		fmt.Println("StructName:", structName, "AutoCreate:", structDetails[0].AutoCreate, "AutoDiscover:", structDetails[0].AutoDiscover)
+		if !autoCreateFlag && autoDiscoverFlag {
+			f.WriteString("\t- CREATE(POST)\n")
+			f.WriteString("\t\t curl -X POST -H 'Content-Type: application/json' --header 'Accept: application/json' -d '{<Model Object as json-Data>}' http://device-management-IP:8080/public/v1/config/" + structName + "\n")
+			f.WriteString("\t- DELETE By Key\n")
+			f.WriteString("\t\t curl -X DELETE -i -H 'Accept:application/json' -d '{<Model Object as json data>}' http://device-management-IP:8080/public/v1/config/" + structName + "\n")
+			f.WriteString("\t- DELETE By ID\n")
+			f.WriteString("\t\t curl -X DELETE http://device-management-IP:8080/public/v1/config/" + structName + "<uuid>\n")
+		}
+		f.WriteString("\t- UPDATE(PATCH) By Key\n")
+		f.WriteString("\t\t curl -X PATCH -H 'Content-Type: application/json' -d '{<Model Object as json data>}'  http://device-management-IP:8080/public/v1/config/" + structName + "\n")
+		f.WriteString("\t- UPDATE(PATCH) By ID\n")
+		f.WriteString("\t\t curl -X PATCH -H 'Content-Type: application/json' -d '{<Model Object as json data>}'  http://device-management-IP:8080/public/v1/config/" + structName + "<uuid>\n")
+	}
+
+}
+
+func WriteCodeExample(structName string, structDetails []StructDetails, f *os.File, autoDiscoverFlag bool, autoCreateFlag bool) {
+	f.WriteString("- **GET**\n\n")
+	f.WriteString(codeHeader)
+	f.WriteString("\t\tresponse, error = swtch.get" + structName + "(")
+	var arg []string
+	for _, structDetail := range structDetails {
+		if structDetail.IsKey {
+			arg = append(arg, structDetail.FieldName)
+		}
+	}
+	for idx, data := range arg {
+		f.WriteString(data + "=" + strings.ToLower(data))
+		if idx != len(arg)-1 {
+			f.WriteString(", ")
+		} else {
+			f.WriteString(")")
+		}
+	}
+	f.WriteString("\n")
+	f.WriteString(codeTail)
+
+	f.WriteString("\n\n")
+	f.WriteString("- **GET By ID**\n\n")
+	f.WriteString(codeHeader)
+	//str = strings.TrimSuffix(structName, "State")
+	f.WriteString("\t\tresponse, error = swtch.get" + structName + "ById(ObjectId=objectid)")
+	f.WriteString("\n")
+	f.WriteString(codeTail)
+	f.WriteString("\n\n")
+
+	f.WriteString("\n\n")
+	f.WriteString("- **GET ALL**\n\n")
+	f.WriteString(codeHeader)
+	//str = strings.TrimSuffix(structName, "State")
+	f.WriteString("\t\tresponse, error = swtch.getAll" + structName + "s()")
+	f.WriteString("\n")
+	f.WriteString(codeTail)
+	f.WriteString("\n\n")
+	if !strings.Contains(structName, "State") {
+		if !autoCreateFlag && autoDiscoverFlag {
+			f.WriteString("- **CREATE**\n")
+			f.WriteString(codeHeader)
+			f.WriteString("\t\tresponse, error = swtch.create" + structName + "(")
+			var arg []string
+			for _, structDetail := range structDetails {
+				if structDetail.IsKey {
+					arg = append(arg, structDetail.FieldName)
+				}
+			}
+			for _, structDetail := range structDetails {
+				if !structDetail.IsKey {
+					arg = append(arg, structDetail.FieldName)
+				}
+			}
+			for idx, data := range arg {
+				f.WriteString(data + "=" + strings.ToLower(data))
+				if idx != len(arg)-1 {
+					f.WriteString(", ")
+				} else {
+					f.WriteString(")")
+				}
+			}
+			f.WriteString("\n")
+			f.WriteString(codeTail)
+
+			f.WriteString("\n\n")
+			f.WriteString("- **DELETE**\n")
+			f.WriteString(codeHeader)
+			f.WriteString("\t\tresponse, error = swtch.delete" + structName + "(")
+			arg = []string{}
+			for _, structDetail := range structDetails {
+				if structDetail.IsKey {
+					arg = append(arg, structDetail.FieldName)
+				}
+			}
+			for idx, data := range arg {
+				f.WriteString(data + "=" + strings.ToLower(data))
+				if idx != len(arg)-1 {
+					f.WriteString(", ")
+				} else {
+					f.WriteString(")")
+				}
+			}
+			f.WriteString("\n")
+			f.WriteString(codeTail)
+
+			f.WriteString("\n\n")
+			f.WriteString("- **DELETE By ID**\n")
+			f.WriteString(codeHeader)
+			f.WriteString("\t\tresponse, error = swtch.delete" + structName + "ById(ObjectId=objectid")
+			f.WriteString("\n")
+			f.WriteString(codeTail)
+
+		}
+
+		f.WriteString("\n\n")
+		f.WriteString("- **UPDATE**\n")
+		f.WriteString(codeHeader)
+		f.WriteString("\t\tresponse, error = swtch.update" + structName + "(")
+		var arg []string
+		for _, structDetail := range structDetails {
+			if structDetail.IsKey {
+				arg = append(arg, structDetail.FieldName)
+			}
+		}
+		for _, structDetail := range structDetails {
+			if !structDetail.IsKey {
+				arg = append(arg, structDetail.FieldName)
+			}
+		}
+		for idx, data := range arg {
+			f.WriteString(data + "=" + strings.ToLower(data))
+			if idx != len(arg)-1 {
+				f.WriteString(", ")
+			} else {
+				f.WriteString(")")
+			}
+		}
+		f.WriteString("\n")
+		f.WriteString(codeTail)
+
+		f.WriteString("\n\n")
+		f.WriteString("- **UPDATE By ID**\n")
+		f.WriteString(codeHeader)
+		f.WriteString("\t\tresponse, error = swtch.update" + structName + "ById(ObjectId=objectid")
+		arg = []string{}
+		for _, structDetail := range structDetails {
+			if !structDetail.IsKey {
+				arg = append(arg, structDetail.FieldName)
+			}
+		}
+		for idx, data := range arg {
+			f.WriteString(data + "=" + strings.ToLower(data))
+			if idx != len(arg)-1 {
+				f.WriteString(", ")
+			} else {
+				f.WriteString(")")
+			}
+		}
+		f.WriteString("\n")
+		f.WriteString(codeTail)
+	}
+}
+
+func constructRstFile() {
 	for _, modelObjEnt := range ModelObj {
 		for structName, structDetails := range modelObjEnt {
 			f, err := os.Create(structName + "Objects.rst")
 			check(err)
 			f.WriteString(structName + " Model Objects\n")
-			f.WriteString("============================================\n\n")
+			f.WriteString("=============================================================\n\n")
 			if strings.Contains(structName, "State") {
 				str := strings.TrimSuffix(structName, "State")
 				f.WriteString("*state/" + str + "*\n")
@@ -382,161 +628,24 @@ func constructRstFile() {
 			}
 			f.WriteString("------------------------------------\n\n")
 			if structDetails[0].Multiplicity {
-				f.WriteString("- Multiple objects of this type can exist in a system.\n")
+				f.WriteString("- Multiple objects of this type can exist in a system.\n\n")
 			} else {
-				f.WriteString("- Only one object of this type can exist in a system.\n")
+				f.WriteString("- Only one object of this type can exist in a system.\n\n")
 			}
 
-			/*
-				for _, structDetail := range structDetails {
-					if structDetail.IsKey {
-						f.WriteString("- **" + structDetail.FieldName + "**\n")
-						f.WriteString("\t- **Data Type**: " + structDetail.Type + "\n")
-						f.WriteString("\t- **Description**: " + structDetail.Description + ".\n")
-						if structDetail.IsDefaultSet {
-							f.WriteString("\t- **Default**: " + structDetail.Default + "\n")
-						}
-						if structDetail.Selection != nil {
-							f.WriteString("\t- **Possible Values**: ")
-							for idx, val := range structDetail.Selection {
-								f.WriteString(val)
-								if idx != len(structDetail.Selection)-1 {
-									f.WriteString(", ")
-								} else {
-									f.WriteString("\n")
-								}
-							}
-						}
-						f.WriteString("\t- This parameter is key element.\n")
-						if autoDiscoverFlag == false && structDetail.AutoDiscover {
-							autoDiscoverFlag = true
-						}
-						if autoCreateFlag == false && structDetail.AutoCreate {
-							autoCreateFlag = true
-						}
-					}
-				}
-				for _, structDetail := range structDetails {
-					if !structDetail.IsKey {
-						f.WriteString("- **" + structDetail.FieldName + "**\n")
-						f.WriteString("\t- **Data Type**: " + structDetail.Type + "\n")
-						f.WriteString("\t- **Description**: " + structDetail.Description + ".\n")
-						if structDetail.IsDefaultSet {
-							f.WriteString("\t- **Default**: " + structDetail.Default + "\n")
-						}
-					}
-				}
-			*/
+			autoDiscoverFlag, autoCreateFlag := createParameterDescTable(structName, structDetails, f)
+
 			f.WriteString("\n")
 
-			table := tablewriter.NewWriter(f)
-			table.SetAutoFormatHeaders(true)
-			table.SetHeader([]string{"**Parameter Name**", "**Data Type**", "**Description**", "**Default**", "**Valid Values**"})
-			table.SetRowLine(true)
-			table.SetRowSeparator("-")
-			table.SetHeaderLine(true)
-			table.SetColWidth(30)
-			data := [][]string{}
-			for _, structDetail := range structDetails {
-				val := []string{}
-				if structDetail.IsKey {
-					str := structDetail.FieldName
-					str += " **[KEY]**"
-					val = append(val, str)
-					val = append(val, structDetail.Type)
-					val = append(val, structDetail.Description)
-					if structDetail.IsDefaultSet {
-						val = append(val, structDetail.Default)
-					} else {
-						val = append(val, "N/A")
-					}
-					if structDetail.Selection != nil {
-						var str string
-						for idx := 0; idx < len(structDetail.Selection); idx++ {
-							str = str + structDetail.Selection[idx]
-							if idx != len(structDetail.Selection)-1 {
-								str += ", "
-							}
-						}
-						val = append(val, str)
-					} else {
-						val = append(val, "N/A")
-					}
-					data = append(data, val)
-					if autoDiscoverFlag == false && structDetail.AutoDiscover {
-						autoDiscoverFlag = true
-					}
-					if autoCreateFlag == false && structDetail.AutoCreate {
-						autoCreateFlag = true
-					}
-				}
-			}
-			for _, structDetail := range structDetails {
-				val := []string{}
-				if !structDetail.IsKey {
-					val = append(val, structDetail.FieldName)
-					val = append(val, structDetail.Type)
-					val = append(val, structDetail.Description)
-					if structDetail.IsDefaultSet {
-						val = append(val, structDetail.Default)
-					} else {
-						val = append(val, "N/A")
-					}
-					if structDetail.Selection != nil {
-						var str string
-						for idx := 0; idx < len(structDetail.Selection); idx++ {
-							str = str + structDetail.Selection[idx]
-							if idx != len(structDetail.Selection)-1 {
-								str += ", "
-							}
-						}
-						val = append(val, str)
-					} else {
-						val = append(val, "N/A")
-					}
-					data = append(data, val)
-				}
-			}
-
-			for _, v := range data {
-				table.Append(v)
-			}
-			table.Render()
-
 			f.WriteString("\n\n")
-			f.WriteString("**Flexswitch API Supported:**\n")
-			if strings.Contains(structName, "State") {
-				str := strings.TrimSuffix(structName, "State")
-				f.WriteString("\t- GET By Key\n")
-				f.WriteString("\t\t curl -X GET -H 'Content-Type: application/json' --header 'Accept: application/json' -d '{<Model Object as json-Data>}' http://device-management-IP:8080/public/v1/state/" + str + "\n")
-				if structDetails[0].Multiplicity {
-					f.WriteString("\t- GET ALL\n")
-					f.WriteString("\t\t curl -X GET http://device-management-IP:8080/public/v1/state/" + str + "?CurrentMarker=<x>&Count=<y>\n")
-				}
-			} else {
-				f.WriteString("\t- GET By Key\n")
-				f.WriteString("\t\t curl -X GET -H 'Content-Type: application/json' --header 'Accept: application/json' -d '{<Model Object as json-Data>}' http://device-management-IP:8080/public/v1/config/" + structName + "\n")
-				f.WriteString("\t- GET By ID\n")
-				f.WriteString("\t\t curl -X GET http://device-management-IP:8080/public/v1/config/" + structName + "/<uuid>\n")
-				if structDetails[0].Multiplicity {
-					f.WriteString("\t- GET ALL\n")
-					f.WriteString("\t\t curl -X GET http://device-management-IP:8080/public/v1/config/" + structName + "?CurrentMarker=<x>&Count=<y>\n")
-				}
-				fmt.Println("StructName:", structName, "AutoCreate:", structDetails[0].AutoCreate, "AutoDiscover:", structDetails[0].AutoDiscover)
-				if !autoCreateFlag && autoDiscoverFlag {
-					f.WriteString("\t- CREATE(POST)\n")
-					f.WriteString("\t\t curl -X POST -H 'Content-Type: application/json' --header 'Accept: application/json' -d '{<Model Object as json-Data>}' http://device-management-IP:8080/public/v1/config/" + structName + "\n")
-					f.WriteString("\t- DELETE By Key\n")
-					f.WriteString("\t\t curl -X DELETE -i -H 'Accept:application/json' -d '{<Model Object as json data>}' http://device-management-IP:8080/public/v1/config/" + structName + "\n")
-					f.WriteString("\t- DELETE By ID\n")
-					f.WriteString("\t\t curl -X DELETE http://device-management-IP:8080/public/v1/config/" + structName + "<uuid>\n")
-				}
-				f.WriteString("\t- UPDATE(PATCH) By Key\n")
-				f.WriteString("\t\t curl -X PATCH -H 'Content-Type: application/json' -d '{<Model Object as json data>}'  http://device-management-IP:8080/public/v1/config/" + structName + "\n")
-				f.WriteString("\t- UPDATE(PATCH) By ID\n")
-				f.WriteString("\t\t curl -X PATCH -H 'Content-Type: application/json' -d '{<Model Object as json data>}'  http://device-management-IP:8080/public/v1/config/" + structName + "<uuid>\n")
-			}
+
+			f.WriteString("**FlexSwitch CURL API Supported:**\n")
+			WriteCurlCommands(structName, structDetails, f, autoDiscoverFlag, autoCreateFlag)
 			f.WriteString("\n\n")
+			f.WriteString("**FlexSwitch SDK API Supported:**\n")
+			f.WriteString("\n\n")
+
+			WriteCodeExample(structName, structDetails, f, autoDiscoverFlag, autoCreateFlag)
 			f.Sync()
 			f.Close()
 		}
