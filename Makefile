@@ -1,10 +1,10 @@
 RM=rm -f
 RMFORCE=rm -rf
-SRCS= genGoStructPdf.go
+SRCS= genGoStructRst.go
 all: exe
 
 exe: $(SRCS)
 	go build $(SRCS)
 
 clean:
-	$(RM) genGoStructPdf *.rst
+	$(RM) genGoStructRst rstFiles/*.rst
